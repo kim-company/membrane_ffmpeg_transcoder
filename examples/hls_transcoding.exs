@@ -11,11 +11,57 @@ defmodule ExamplePipeline do
   use Membrane.Pipeline
 
   @outputs [
-    {3840, 2160},
-    {1920, 1080},
-    {1280, 720},
-    {640, 360},
-    {416, 234}
+    # uhd: [
+    #   resolution: {3840, 2160},
+    #   profile: :high,
+    #   fps: 30,
+    #   gop_size: 60,
+    #   b_frames: 2,
+    #   crf: 29,
+    #   preset: :veryfast,
+    #   tune: :zerolatency
+    # ],
+    fhd: [
+      resolution: {1920, 1080},
+      profile: :high,
+      fps: 30,
+      gop_size: 60,
+      b_frames: 3,
+      crf: 29,
+      preset: :veryfast,
+      tune: :zerolatency
+    ],
+    hd: [
+      resolution: {1280, 720},
+      profile: :high,
+      fps: 30,
+      gop_size: 60,
+      b_frames: 3,
+      crf: 29,
+      preset: :veryfast,
+      tune: :zerolatency
+    ],
+    sd: [
+      resolution: {640, 360},
+      profile: :main,
+      fps: 15,
+      gop_size: 30,
+      b_frames: 3,
+      crf: 29,
+      preset: :veryfast,
+      tune: :zerolatency
+
+    ],
+    mobile: [
+      resolution: {416, 234},
+      profile: :baseline,
+      fps: 15,
+      gop_size: 30,
+      b_frames: 0,
+      crf: 29,
+      preset: :veryfast,
+      tune: :zerolatency
+    ]
   ]
 
   @impl true
@@ -29,28 +75,21 @@ defmodule ExamplePipeline do
         |> child(:demuxer, Membrane.MP4.Demuxer.ISOM)
         |> via_out(:output, options: [kind: :video])
         |> child(:parser, %Membrane.H264.Parser{output_stream_structure: :annexb})
-        |> child(:rt, Membrane.Realtimer)
+        # |> child(:rt, Membrane.Realtimer)
         |> child(:transcoder, Membrane.FFmpeg.Transcoder),
         # Audio
         get_child(:demuxer)
         |> via_out(:output, options: [kind: :audio])
         |> child(:sink_audio, Membrane.Debug.Sink)
       ] ++
-        Enum.map(@outputs, fn resolution ->
+        Enum.map(@outputs, fn {id, opts} ->
           get_child(:transcoder)
-          |> via_out(:output,
-            options: [
-              resolution: resolution,
-              profile: :baseline,
-              crf: 29,
-              preset: :veryfast,
-              tune: :zerolatency
-            ]
-          )
-          # TODO: Check this out
-          # |> child({:parser, resolution}, Membrane.H264.Parser)
-          |> child({:sink, resolution}, %Membrane.Debug.Sink{
-            handle_buffer: &IO.inspect(&1, label: inspect(resolution))
+          |> via_out(:output, options: opts)
+          # |> child({:demuxer, id}, Membrane.MP4.Demuxer.ISOM)
+          # |> via_out(:output, options: [kind: :video])
+          |> child({:parser, id}, Membrane.H264.Parser)
+          |> child({:sink, id}, %Membrane.Debug.Sink{
+            handle_buffer: &IO.inspect(&1, label: inspect(id))
           })
         end)
 
@@ -61,7 +100,7 @@ defmodule ExamplePipeline do
   def handle_element_end_of_stream(element, _pad, _ctx, state) do
     state = %{state | children_with_eos: MapSet.put(state.children_with_eos, element)}
 
-    sinks = Enum.map(@outputs, &{:sink, &1})
+    sinks = Enum.map(@outputs, fn {id, _opts} -> {:sink, id} end)
 
     actions =
       if Enum.all?(sinks, &(&1 in state.children_with_eos)),

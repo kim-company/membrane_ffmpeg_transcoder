@@ -8,7 +8,7 @@ defmodule Membrane.FFmpeg.Transcoder do
 
   def_output_pad(:output,
     flow_control: :auto,
-    accepted_format: Membrane.H264,
+    accepted_format: Membrane.RemoteStream,
     availability: :on_request,
     options: [
       resolution: [
@@ -20,13 +20,28 @@ defmodule Membrane.FFmpeg.Transcoder do
         description: "H264 Profile"
       ],
       crf: [
-        spec: pos_integer()
+        spec: pos_integer(),
+        default: 29
       ],
       preset: [
-        spec: atom()
+        spec: atom(),
+        default: :high
       ],
       tune: [
-        spec: atom()
+        spec: atom(),
+        default: :zerolatency
+      ],
+      fps: [
+        spec: pos_integer(),
+        default: 30
+      ],
+      gop_size: [
+        spec: pos_integer(),
+        default: 60
+      ],
+      b_frames: [
+        spec: pos_integer(),
+        default: 3
       ]
     ]
   )
@@ -34,6 +49,11 @@ defmodule Membrane.FFmpeg.Transcoder do
   @impl true
   def handle_init(_ctx, _opts) do
     {[], %{ffmpeg: nil}}
+  end
+
+  @impl true
+  def handle_stream_format(_pad, _stream_format, _ctx, state) do
+    {[forward: %Membrane.RemoteStream{content_format: Membrane.H264}], state}
   end
 
   @impl true
@@ -50,7 +70,10 @@ defmodule Membrane.FFmpeg.Transcoder do
       [
         "[0:v]split=#{length(outputs)}#{Enum.map(outputs, fn {_output, index} -> "[v#{index}]" end)}",
         Enum.map(outputs, fn {output, index} ->
-          "[v#{index}]scale=-2:#{elem(output.options.resolution, 1)}[v#{index}out]"
+          opts = output.options
+          {w, h} = opts.resolution
+
+          "[v#{index}]fps=#{opts.fps},scale=#{w}:#{h}[v#{index}out]"
         end)
       ]
       |> List.flatten()
@@ -81,7 +104,7 @@ defmodule Membrane.FFmpeg.Transcoder do
         Enum.map(outputs, fn {output, index} ->
           opts = output.options
 
-          ~w(-map [v#{index}out] -c:v:#{index - 1} libx264 -preset #{opts.preset} -crf #{opts.crf} -tune #{opts.tune} -profile #{opts.profile} -f h264 #{Path.join(tmp_dir, "#{index}.pipe")})
+          ~w(-map [v#{index}out] -c:v:#{index - 1} libx264 -preset #{opts.preset} -crf #{opts.crf} -tune #{opts.tune} -profile #{opts.profile} -g #{opts.gop_size} -bf #{opts.b_frames} -f h264 #{Path.join(tmp_dir, "#{index}.pipe")})
         end)
       ])
 
@@ -99,6 +122,7 @@ defmodule Membrane.FFmpeg.Transcoder do
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
     Exile.Process.close_stdin(state.ffmpeg)
+    Exile.Process.await_exit(state.ffmpeg)
     {[], state}
   end
 
