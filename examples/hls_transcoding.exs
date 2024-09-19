@@ -10,6 +10,8 @@ Mix.install([
 defmodule ExamplePipeline do
   use Membrane.Pipeline
 
+  @crf 23
+
   @outputs [
     # uhd: [
     #   resolution: {3840, 2160},
@@ -27,7 +29,7 @@ defmodule ExamplePipeline do
       fps: 30,
       gop_size: 60,
       b_frames: 3,
-      crf: 29,
+      crf: @crf,
       preset: :veryfast,
       tune: :zerolatency
     ],
@@ -37,7 +39,7 @@ defmodule ExamplePipeline do
       fps: 30,
       gop_size: 60,
       b_frames: 3,
-      crf: 29,
+      crf: @crf,
       preset: :veryfast,
       tune: :zerolatency
     ],
@@ -47,7 +49,7 @@ defmodule ExamplePipeline do
       fps: 15,
       gop_size: 30,
       b_frames: 3,
-      crf: 29,
+      crf: @crf,
       preset: :veryfast,
       tune: :zerolatency
 
@@ -58,7 +60,7 @@ defmodule ExamplePipeline do
       fps: 15,
       gop_size: 30,
       b_frames: 0,
-      crf: 29,
+      crf: @crf,
       preset: :veryfast,
       tune: :zerolatency
     ]
@@ -66,6 +68,9 @@ defmodule ExamplePipeline do
 
   @impl true
   def handle_init(_ctx, _opts) do
+    File.rm_rf("output")
+    File.mkdir("output")
+
     spec =
       [
         child(:source, %Membrane.File.Source{
@@ -75,7 +80,7 @@ defmodule ExamplePipeline do
         |> child(:demuxer, Membrane.MP4.Demuxer.ISOM)
         |> via_out(:output, options: [kind: :video])
         |> child(:parser, %Membrane.H264.Parser{output_stream_structure: :annexb})
-        # |> child(:rt, Membrane.Realtimer)
+        |> child(:rt, Membrane.Realtimer)
         |> child(:transcoder, Membrane.FFmpeg.Transcoder),
         # Audio
         get_child(:demuxer)
@@ -85,12 +90,12 @@ defmodule ExamplePipeline do
         Enum.map(@outputs, fn {id, opts} ->
           get_child(:transcoder)
           |> via_out(:output, options: opts)
-          # |> child({:demuxer, id}, Membrane.MP4.Demuxer.ISOM)
-          # |> via_out(:output, options: [kind: :video])
-          |> child({:parser, id}, Membrane.H264.Parser)
-          |> child({:sink, id}, %Membrane.Debug.Sink{
-            handle_buffer: &IO.inspect(&1, label: inspect(id))
-          })
+          |> child({:parser, id}, %Membrane.H264.Parser{output_stream_structure: :avc1})
+          |> child({:sink, id}, %Membrane.File.Sink{location: "output/#{id}.h264"})
+          # |> child({:sink, id}, %Membrane.Debug.Sink{
+          #   handle_stream_format: &IO.inspect/1
+          #   # handle_buffer: &IO.inspect(&1, label: inspect(id))
+          # })
         end)
 
     {[spec: spec], %{children_with_eos: MapSet.new()}}
