@@ -24,3 +24,5 @@ membrane_ffmpeg_transcoder-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+/examples/output

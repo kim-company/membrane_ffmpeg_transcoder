@@ -123,7 +123,7 @@ defmodule Membrane.FFmpeg.Transcoder do
   def handle_end_of_stream(:input, _ctx, state) do
     Exile.Process.close_stdin(state.ffmpeg)
     Exile.Process.await_exit(state.ffmpeg)
-    {[], state}
+    {[forward: :end_of_stream], state}
   end
 
   @impl true
