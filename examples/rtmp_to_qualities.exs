@@ -12,7 +12,7 @@ Mix.install([
 defmodule ExamplePipeline do
   use Membrane.Pipeline
 
-  @crf 23
+  @crf 26
 
   @outputs [
     # uhd: [

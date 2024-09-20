@@ -66,19 +66,6 @@ defmodule Membrane.FFmpeg.Transcoder do
 
     tmp_dir = System.tmp_dir!()
 
-    filtergraph =
-      [
-        "[0:v]split=#{length(outputs)}#{Enum.map(outputs, fn {_output, index} -> "[v#{index}]" end)}",
-        Enum.map(outputs, fn {output, index} ->
-          opts = output.options
-          {w, h} = opts.resolution
-
-          "[v#{index}]fps=#{opts.fps},scale=#{w}:#{h}[v#{index}out]"
-        end)
-      ]
-      |> List.flatten()
-      |> Enum.join(";")
-
     Enum.each(outputs, fn {output, index} ->
       path = Path.join(tmp_dir, "#{index}.pipe")
       File.rm(path)
@@ -98,15 +85,46 @@ defmodule Membrane.FFmpeg.Transcoder do
       end)
     end)
 
-    command =
-      List.flatten([
-        ~w(ffmpeg -y -hide_banner -loglevel error -i - -filter_complex #{filtergraph}),
+    filtergraph =
+      [
+        "[0:v]split=#{length(outputs)}#{Enum.map(outputs, fn {_output, index} -> "[v#{index}]" end)}",
         Enum.map(outputs, fn {output, index} ->
           opts = output.options
+          {w, h} = opts.resolution
 
-          ~w(-map [v#{index}out] -c:v:#{index - 1} libx264 -preset #{opts.preset} -crf #{opts.crf} -tune #{opts.tune} -profile #{opts.profile} -g #{opts.gop_size} -bf #{opts.b_frames} -f h264 #{Path.join(tmp_dir, "#{index}.pipe")})
+          "[v#{index}]fps=#{opts.fps},scale=#{w}:#{h}[v#{index}out]"
         end)
-      ])
+      ]
+      |> List.flatten()
+      |> Enum.join(";")
+
+    mappings =
+      Enum.flat_map(outputs, fn {output, index} ->
+        opts = output.options
+        pipe = Path.join(tmp_dir, "#{index}.pipe")
+
+        ~w(
+            -map
+            [v#{index}out]
+            -c:v:#{index - 1}
+            libx264
+            -preset #{opts.preset}
+            -crf #{opts.crf}
+            -tune #{opts.tune}
+            -profile #{opts.profile}
+            -g #{opts.gop_size}
+            -bf #{opts.b_frames}
+            -f h264
+            #{pipe}
+          )
+      end)
+
+    command = ~w(
+          ffmpeg -y -hide_banner
+          -loglevel error
+          -i -
+          -filter_complex #{filtergraph}
+        ) ++ mappings
 
     {:ok, ffmpeg} = Exile.Process.start_link(command)
 
@@ -123,12 +141,8 @@ defmodule Membrane.FFmpeg.Transcoder do
   def handle_end_of_stream(:input, _ctx, state) do
     Exile.Process.close_stdin(state.ffmpeg)
     Exile.Process.await_exit(state.ffmpeg)
+    # TODO: Read all buffers here?
     {[forward: :end_of_stream], state}
-  end
-
-  @impl true
-  def handle_pad_added(_pad, _context, state) do
-    {[], state}
   end
 
   @impl true
