@@ -23,6 +23,7 @@ defmodule MembraneFfmpegTranscoder.MixProject do
     [
       {:membrane_core, "~> 1.1"},
       {:membrane_h264_format, "~> 0.6.0"},
+      {:membrane_mpeg_ts_plugin, github: "kim-company/membrane_mpeg_ts_plugin"},
       {:exile, "~> 0.11.0"}
     ]
   end
