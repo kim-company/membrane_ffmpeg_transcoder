@@ -4,7 +4,7 @@ Mix.install([
   :membrane_mp4_plugin,
   :membrane_realtimer_plugin,
   :membrane_h26x_plugin,
-  {:membrane_ffmpeg_transcoder_plugin, [path: "../"]}
+  {:membrane_ffmpeg_transcoder_plugin, [path: "#{Path.expand(__DIR__)}/../"]}
 ])
 
 defmodule ExamplePipeline do
@@ -52,7 +52,6 @@ defmodule ExamplePipeline do
       crf: @crf,
       preset: :veryfast,
       tune: :zerolatency
-
     ],
     mobile: [
       resolution: {416, 234},
@@ -75,7 +74,7 @@ defmodule ExamplePipeline do
       [
         child(:source, %Membrane.File.Source{
           chunk_size: 40_960,
-          location: "~/Documents/Testdata/lg-uhd-LG-Greece-and-Norway.mp4"
+          location: "~/Downloads/4k-demo-video.mp4"
         })
         |> child(:demuxer, Membrane.MP4.Demuxer.ISOM)
         |> via_out(:output, options: [kind: :video])
@@ -92,6 +91,7 @@ defmodule ExamplePipeline do
           |> via_out(:output, options: opts)
           |> child({:parser, id}, %Membrane.H264.Parser{output_stream_structure: :avc1})
           |> child({:sink, id}, %Membrane.File.Sink{location: "output/#{id}.h264"})
+
           # |> child({:sink, id}, %Membrane.Debug.Sink{
           #   handle_stream_format: &IO.inspect/1
           #   # handle_buffer: &IO.inspect(&1, label: inspect(id))

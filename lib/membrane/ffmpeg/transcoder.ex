@@ -65,23 +65,16 @@ defmodule Membrane.FFmpeg.Transcoder do
       |> Enum.with_index(1)
 
     tmp_dir = System.tmp_dir!()
+    parent = self()
 
     Enum.each(outputs, fn {output, index} ->
       path = Path.join(tmp_dir, "#{index}.pipe")
       File.rm(path)
       {_, 0} = System.cmd("mkfifo", [path])
 
-      # spawn(fn ->
-      #   System.cmd("ffplay", [path])
-      # end)
-
-      parent = self()
-
       spawn_link(fn ->
         Exile.stream!(~w(cat #{path}))
-        |> Enum.each(fn data ->
-          send(parent, {:data, output.ref, data})
-        end)
+        |> Enum.each(fn data -> send(parent, {:data, output.ref, data}) end)
       end)
     end)
 
@@ -114,7 +107,8 @@ defmodule Membrane.FFmpeg.Transcoder do
             -profile #{opts.profile}
             -g #{opts.gop_size}
             -bf #{opts.b_frames}
-            -f h264
+            -movflags frag_keyframe+empty_moov
+            -f mp4
             #{pipe}
           )
       end)
@@ -126,6 +120,7 @@ defmodule Membrane.FFmpeg.Transcoder do
           -filter_complex #{filtergraph}
         ) ++ mappings
 
+    Membrane.Logger.debug("FFmpeg: #{Enum.join(command, " ")}")
     {:ok, ffmpeg} = Exile.Process.start_link(command)
 
     {[], %{state | ffmpeg: ffmpeg}}
@@ -141,7 +136,7 @@ defmodule Membrane.FFmpeg.Transcoder do
   def handle_end_of_stream(:input, _ctx, state) do
     Exile.Process.close_stdin(state.ffmpeg)
     Exile.Process.await_exit(state.ffmpeg)
-    # TODO: Read all buffers here?
+    # TODO: Read all buffers here? YES
     {[forward: :end_of_stream], state}
   end
 
