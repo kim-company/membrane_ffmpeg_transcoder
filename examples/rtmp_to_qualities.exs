@@ -95,21 +95,23 @@ defmodule ExamplePipeline do
         Enum.map(@outputs, fn {id, opts} ->
           get_child(:transcoder)
           |> via_out(:output, options: opts)
+          # This is for outputting files
           |> child({:parser, id}, %Membrane.H264.Parser{
-            output_stream_structure: :avc1
+            output_stream_structure: :annexb
           })
-          # |> child({:debug, id}, %Membrane.Debug.Filter{
+          |> child({:sink, id}, %Membrane.File.Sink{location: "output/#{id}.h264"})
+
+          # This is for testing out CMAF muxing
+          # |> child({:parser, id}, %Membrane.H264.Parser{
+          #   output_stream_structure: :avc1
+          # })
+          # |> child({:muxer, id}, %Membrane.MP4.Muxer.CMAF{
+          #   segment_min_duration: Membrane.Time.seconds(1)
+          # })
+          # |> child({:sink, id}, %Membrane.Debug.Sink{
+          #   handle_stream_format: &IO.inspect(&1, label: "FORMAT ON #{inspect(id)}")
           #   handle_buffer: &IO.inspect(&1, label: "BUFFER ON #{inspect(id)}")
           # })
-          |> child({:muxer, id}, %Membrane.MP4.Muxer.CMAF{
-            segment_min_duration: Membrane.Time.seconds(1)
-          })
-          |> child({:sink, id}, %Membrane.Debug.Sink{
-            handle_stream_format: &IO.inspect(&1, label: "FORMAT ON #{inspect(id)}"),
-            handle_buffer: &IO.inspect(&1, label: "BUFFER ON #{inspect(id)}")
-          })
-
-          # |> child({:sink, id}, %Membrane.File.Sink{location: "output/#{id}.mp4"})
         end)
 
     {[spec: spec], %{children_with_eos: MapSet.new()}}
