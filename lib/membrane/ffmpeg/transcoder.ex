@@ -53,7 +53,7 @@ defmodule Membrane.FFmpeg.Transcoder do
 
   @impl true
   def handle_stream_format(_pad, _stream_format, _ctx, state) do
-    {[forward: %Membrane.RemoteStream{}], state}
+    {[forward: %Membrane.RemoteStream{content_format: Membrane.H264}], state}
   end
 
   @impl true

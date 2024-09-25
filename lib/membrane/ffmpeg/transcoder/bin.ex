@@ -6,7 +6,7 @@ defmodule Membrane.FFmpeg.Transcoder.Bin do
   )
 
   def_output_pad(:output,
-    accepted_format: Membrane.H264,
+    accepted_format: Membrane.RemoteStream,
     availability: :on_request,
     options: [
       resolution: [
@@ -90,9 +90,6 @@ defmodule Membrane.FFmpeg.Transcoder.Bin do
     spec = [
       get_child({:demuxer, id})
       |> via_out(Pad.ref(:output, {:stream_id, sid}))
-      |> child({:parser, id}, %Membrane.H264.Parser{
-        output_stream_structure: :avc1
-      })
       |> get_child({:funnel, id})
     ]
 

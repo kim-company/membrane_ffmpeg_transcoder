@@ -95,6 +95,9 @@ defmodule ExamplePipeline do
         Enum.map(@outputs, fn {id, opts} ->
           get_child(:transcoder)
           |> via_out(:output, options: opts)
+          |> child({:parser, id}, %Membrane.H264.Parser{
+            output_stream_structure: :avc1
+          })
           # |> child({:debug, id}, %Membrane.Debug.Filter{
           #   handle_buffer: &IO.inspect(&1, label: "BUFFER ON #{inspect(id)}")
           # })
