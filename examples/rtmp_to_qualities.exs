@@ -47,27 +47,27 @@ defmodule ExamplePipeline do
       crf: @crf,
       preset: :veryfast,
       tune: :zerolatency
+    ],
+    sd: [
+      resolution: {640, 360},
+      profile: :main,
+      fps: 15,
+      gop_size: 30,
+      b_frames: 3,
+      crf: @crf,
+      preset: :veryfast,
+      tune: :zerolatency
+    ],
+    mobile: [
+      resolution: {416, 234},
+      profile: :baseline,
+      fps: 15,
+      gop_size: 30,
+      b_frames: 0,
+      crf: @crf,
+      preset: :veryfast,
+      tune: :zerolatency
     ]
-    # sd: [
-    #   resolution: {640, 360},
-    #   profile: :main,
-    #   fps: 15,
-    #   gop_size: 30,
-    #   b_frames: 3,
-    #   crf: @crf,
-    #   preset: :veryfast,
-    #   tune: :zerolatency
-    # ],
-    # mobile: [
-    #   resolution: {416, 234},
-    #   profile: :baseline,
-    #   fps: 15,
-    #   gop_size: 30,
-    #   b_frames: 0,
-    #   crf: @crf,
-    #   preset: :veryfast,
-    #   tune: :zerolatency
-    # ]
   ]
 
   @impl true
@@ -93,25 +93,20 @@ defmodule ExamplePipeline do
         |> child(:sink_audio, Membrane.Debug.Sink)
       ] ++
         Enum.map(@outputs, fn {id, opts} ->
-          IO.inspect("adding pad #{id}")
-
           get_child(:transcoder)
           |> via_out(:output, options: opts)
-          # |> child({:parser, id}, %Membrane.H264.Parser{
-          #   output_stream_structure: :avc1
-          # })
           # |> child({:debug, id}, %Membrane.Debug.Filter{
           #   handle_buffer: &IO.inspect(&1, label: "BUFFER ON #{inspect(id)}")
           # })
-          # |> child({:muxer, id}, %Membrane.MP4.Muxer.CMAF{
-          #   segment_min_duration: Membrane.Time.seconds(1)
-          # })
-          # |> child({:sink, id}, %Membrane.Debug.Sink{
-          #   handle_stream_format: &IO.inspect(&1, label: "FORMAT ON #{inspect(id)}"),
-          #   handle_buffer: &IO.inspect(&1, label: "BUFFER ON #{inspect(id)}")
-          # })
+          |> child({:muxer, id}, %Membrane.MP4.Muxer.CMAF{
+            segment_min_duration: Membrane.Time.seconds(1)
+          })
+          |> child({:sink, id}, %Membrane.Debug.Sink{
+            handle_stream_format: &IO.inspect(&1, label: "FORMAT ON #{inspect(id)}"),
+            handle_buffer: &IO.inspect(&1, label: "BUFFER ON #{inspect(id)}")
+          })
 
-          |> child({:sink, id}, %Membrane.File.Sink{location: "output/#{id}.mp4"})
+          # |> child({:sink, id}, %Membrane.File.Sink{location: "output/#{id}.mp4"})
         end)
 
     {[spec: spec], %{children_with_eos: MapSet.new()}}

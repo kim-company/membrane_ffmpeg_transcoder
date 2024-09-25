@@ -6,7 +6,7 @@ defmodule Membrane.FFmpeg.Transcoder.Bin do
   )
 
   def_output_pad(:output,
-    accepted_format: Membrane.RemoteStream,
+    accepted_format: Membrane.H264,
     availability: :on_request,
     options: [
       resolution: [
@@ -62,21 +62,38 @@ defmodule Membrane.FFmpeg.Transcoder.Bin do
       )
 
   def handle_pad_added(pad, ctx, state) do
-    # id = Enum.count(ctx.pads)
+    id = Enum.count(ctx.pads)
 
     spec = [
+      # Pad needs to be attached straight away. We use a funnel to allow the
+      # playlist to go to playing state, su we can let the demuxer find the pmt
+      # table and connect the everything.
+      child({:funnel, id}, Membrane.Funnel)
+      |> bin_output(pad),
       get_child(:transcoder)
       |> via_out(:output, options: Keyword.new(ctx.pad_options))
-      |> bin_output(pad)
-      # |> child({:demuxer, id}, Membrane.MP4.Demuxer.ISOM)
-      # Audio (ignored)
-      # |> via_out(:output, options: [kind: :audio])
-      # |> child({:null, id}, Membrane.Debug.Sink),
+      |> child({:demuxer, id}, Membrane.MPEG.TS.Demuxer)
+    ]
 
-      # # Video
-      # get_child({:demuxer, id})
-      # |> via_out(:output, options: [kind: :video])
-      # |> bin_output(pad)
+    {[spec: spec], state}
+  end
+
+  @impl true
+  def handle_child_notification(
+        {:mpeg_ts_pmt, %MPEG.TS.PMT{streams: streams}},
+        {:demuxer, id},
+        _ctx,
+        state
+      ) do
+    {sid, _} = Enum.find(streams, fn {_, x} -> x.stream_type == :H264 end)
+
+    spec = [
+      get_child({:demuxer, id})
+      |> via_out(Pad.ref(:output, {:stream_id, sid}))
+      |> child({:parser, id}, %Membrane.H264.Parser{
+        output_stream_structure: :avc1
+      })
+      |> get_child({:funnel, id})
     ]
 
     {[spec: spec], state}

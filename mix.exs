@@ -23,10 +23,10 @@ defmodule MembraneFfmpegTranscoder.MixProject do
     [
       {:membrane_core, "~> 1.1"},
       {:membrane_h264_format, "~> 0.6.0"},
-      {:membrane_flv_plugin, "~> 0.12.0"},
-      {:membrane_mp4_plugin, "~> 0.35.2"},
-      {:membrane_tee_plugin, ">= 0.0.0"},
-      {:membrane_file_plugin, ">= 0.0.0"},
+      {:membrane_h26x_plugin, "~> 0.10.2"},
+      {:membrane_funnel_plugin, "~> 0.9.0"},
+      {:membrane_mpeg_ts_plugin, "~> 1.0"},
+
       #
       {:exile, "~> 0.11.0"}
     ]

@@ -53,7 +53,7 @@ defmodule Membrane.FFmpeg.Transcoder do
 
   @impl true
   def handle_stream_format(_pad, _stream_format, _ctx, state) do
-    {[forward: %Membrane.RemoteStream{content_format: Membrane.MP4}], state}
+    {[forward: %Membrane.RemoteStream{}], state}
   end
 
   @impl true
@@ -75,6 +75,8 @@ defmodule Membrane.FFmpeg.Transcoder do
       spawn_link(fn ->
         Exile.stream!(~w(cat #{path}))
         |> Enum.each(fn data -> send(parent, {:data, output.ref, data}) end)
+
+        send(parent, {:eos, output.ref})
       end)
     end)
 
@@ -99,7 +101,7 @@ defmodule Membrane.FFmpeg.Transcoder do
         ~w(
             -map
             [v#{index}out]
-            -c:v:#{index - 1}
+            -c:v
             libx264
             -preset #{opts.preset}
             -crf #{opts.crf}
@@ -107,8 +109,8 @@ defmodule Membrane.FFmpeg.Transcoder do
             -profile #{opts.profile}
             -g #{opts.gop_size}
             -bf #{opts.b_frames}
-            -movflags frag_keyframe+empty_moov
-            -f mp4
+            -bsf:v h264_mp4toannexb
+            -f mpegts
             #{pipe}
           )
       end)
@@ -136,13 +138,16 @@ defmodule Membrane.FFmpeg.Transcoder do
   def handle_end_of_stream(:input, _ctx, state) do
     Exile.Process.close_stdin(state.ffmpeg)
     Exile.Process.await_exit(state.ffmpeg)
-    # TODO: Read all buffers here? YES
-    {[forward: :end_of_stream], state}
+    {[], state}
   end
 
   @impl true
   def handle_info({:data, pad, payload}, _ctx, state) do
     buffer = %Membrane.Buffer{payload: payload}
     {[buffer: {pad, buffer}], state}
+  end
+
+  def handle_info({:eos, pad}, _ctx, state) do
+    {[end_of_stream: pad], state}
   end
 end

@@ -26,3 +26,4 @@ membrane_ffmpeg_transcoder-*.tar
 /tmp/
 
 /examples/output
+output
