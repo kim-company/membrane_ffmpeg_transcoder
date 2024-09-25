@@ -18,16 +18,16 @@ defmodule ExamplePipeline do
   @crf 26
 
   @outputs [
-    # uhd: [
-    #   resolution: {3840, 2160},
-    #   profile: :high,
-    #   fps: 30,
-    #   gop_size: 60,
-    #   b_frames: 2,
-    #   crf: 29,
-    #   preset: :veryfast,
-    #   tune: :zerolatency
-    # ],
+    uhd: [
+      resolution: {3840, 2160},
+      profile: :high,
+      fps: 30,
+      gop_size: 60,
+      b_frames: 2,
+      crf: 29,
+      preset: :veryfast,
+      tune: :zerolatency
+    ],
     fhd: [
       resolution: {1920, 1080},
       profile: :high,
