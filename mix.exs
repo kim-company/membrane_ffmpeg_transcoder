@@ -1,4 +1,4 @@
-defmodule MembraneFfmpegTranscoder.MixProject do
+defmodule MembraneFFmpegTranscoder.MixProject do
   use Mix.Project
 
   def project do
