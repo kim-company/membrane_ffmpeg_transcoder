@@ -119,6 +119,9 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
             -bsf:v h264_mp4toannexb
             -maxrate #{opts.bitrate}
             -bufsize #{opts.bitrate * 2}
+            -muxpreload 0
+            -muxdelay 0
+            -output_ts_offset 0
             -f mpegts
             #{pipe}
           )
