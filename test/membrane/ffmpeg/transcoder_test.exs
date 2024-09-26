@@ -1,4 +1,4 @@
-defmodule Membrane.FFmpeg.Transcoder.BinTest do
+defmodule Membrane.FFmpeg.TranscoderTest do
   use ExUnit.Case
 
   import Membrane.ChildrenSpec
@@ -74,7 +74,7 @@ defmodule Membrane.FFmpeg.Transcoder.BinTest do
           location: @input_path
         })
         |> child(:parser, %Membrane.H264.Parser{output_stream_structure: :annexb})
-        |> child(:transcoder, Membrane.FFmpeg.Transcoder.Bin)
+        |> child(:transcoder, Membrane.FFmpeg.Transcoder)
       ] ++
         Enum.map(@outputs, fn {id, opts} ->
           get_child(:transcoder)

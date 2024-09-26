@@ -1,13 +1,11 @@
 defmodule Membrane.FFmpeg.Transcoder do
-  use Membrane.Filter
+  use Membrane.Bin
 
   def_input_pad(:input,
-    flow_control: :auto,
     accepted_format: Membrane.H264
   )
 
   def_output_pad(:output,
-    flow_control: :auto,
     accepted_format: Membrane.RemoteStream,
     availability: :on_request,
     options: [
@@ -52,108 +50,53 @@ defmodule Membrane.FFmpeg.Transcoder do
 
   @impl true
   def handle_init(_ctx, _opts) do
-    {[], %{ffmpeg: nil}}
+    spec = [
+      bin_input()
+      |> child(:transcoder, Membrane.FFmpeg.Transcoder.Filter)
+    ]
+
+    {[spec: spec], %{}}
   end
 
   @impl true
-  def handle_stream_format(_pad, _stream_format, _ctx, state) do
-    {[forward: %Membrane.RemoteStream{content_format: Membrane.H264}], state}
+  def handle_pad_added(_pad, ctx, _state) when ctx.playback == :playing,
+    do:
+      raise(
+        "New pads can be added to #{inspect(__MODULE__)} only before playback transition to :playing"
+      )
+
+  def handle_pad_added(pad, ctx, state) do
+    id = Enum.count(ctx.pads)
+
+    spec = [
+      # Pad needs to be attached straight away. We use a funnel to allow the
+      # playlist to go to playing state, su we can let the demuxer find the pmt
+      # table and connect the everything.
+      child({:funnel, id}, Membrane.Funnel)
+      |> bin_output(pad),
+      get_child(:transcoder)
+      |> via_out(:output, options: Keyword.new(ctx.pad_options))
+      |> child({:demuxer, id}, Membrane.MPEG.TS.Demuxer)
+    ]
+
+    {[spec: spec], state}
   end
 
   @impl true
-  def handle_playing(ctx, state) do
-    outputs =
-      ctx.pads
-      |> Map.values()
-      |> Enum.filter(&(&1.direction == :output))
-      |> Enum.with_index(1)
+  def handle_child_notification(
+        {:mpeg_ts_pmt, %MPEG.TS.PMT{streams: streams}},
+        {:demuxer, id},
+        _ctx,
+        state
+      ) do
+    {sid, _} = Enum.find(streams, fn {_, x} -> x.stream_type == :H264 end)
 
-    tmp_dir = System.tmp_dir!()
-    parent = self()
+    spec = [
+      get_child({:demuxer, id})
+      |> via_out(Pad.ref(:output, {:stream_id, sid}))
+      |> get_child({:funnel, id})
+    ]
 
-    Enum.each(outputs, fn {output, index} ->
-      path = Path.join(tmp_dir, "#{index}.pipe")
-      File.rm(path)
-      {_, 0} = System.cmd("mkfifo", [path])
-
-      spawn_link(fn ->
-        Exile.stream!(~w(cat #{path}))
-        |> Enum.each(fn data -> send(parent, {:data, output.ref, data}) end)
-
-        send(parent, {:eos, output.ref})
-      end)
-    end)
-
-    filtergraph =
-      [
-        "[0:v]split=#{length(outputs)}#{Enum.map(outputs, fn {_output, index} -> "[v#{index}]" end)}",
-        Enum.map(outputs, fn {output, index} ->
-          opts = output.options
-          {w, h} = opts.resolution
-
-          "[v#{index}]fps=#{opts.fps},scale=#{w}:#{h}[v#{index}out]"
-        end)
-      ]
-      |> List.flatten()
-      |> Enum.join(";")
-
-    mappings =
-      Enum.flat_map(outputs, fn {output, index} ->
-        opts = output.options
-        pipe = Path.join(tmp_dir, "#{index}.pipe")
-
-        ~w(
-            -map
-            [v#{index}out]
-            -c:v
-            libx264
-            -preset #{opts.preset}
-            -crf #{opts.crf}
-            -tune #{opts.tune}
-            -profile #{opts.profile}
-            -g #{opts.gop_size}
-            -bf #{opts.b_frames}
-            -bsf:v h264_mp4toannexb
-            -maxrate #{opts.bitrate}
-            -bufsize #{opts.bitrate * 2}
-            -f mpegts
-            #{pipe}
-          )
-      end)
-
-    command = ~w(
-          ffmpeg -y -hide_banner
-          -loglevel error
-          -i -
-          -filter_complex #{filtergraph}
-        ) ++ mappings
-
-    Membrane.Logger.debug("FFmpeg: #{Enum.join(command, " ")}")
-    {:ok, ffmpeg} = Exile.Process.start_link(command)
-
-    {[], %{state | ffmpeg: ffmpeg}}
-  end
-
-  @impl true
-  def handle_buffer(:input, buffer, _ctx, state) do
-    :ok = Exile.Process.write(state.ffmpeg, buffer.payload)
-    {[], state}
-  end
-
-  @impl true
-  def handle_end_of_stream(:input, _ctx, state) do
-    Exile.Process.close_stdin(state.ffmpeg)
-    Exile.Process.await_exit(state.ffmpeg)
-    {[], state}
-  end
-
-  @impl true
-  def handle_info({:data, pad, payload}, _ctx, state) do
-    buffer = %Membrane.Buffer{payload: payload}
-    {[buffer: {pad, buffer}], state}
-  end
-
-  def handle_info({:eos, pad}, _ctx, state) do
-    {[end_of_stream: pad], state}
+    {[spec: spec], state}
   end
 end
