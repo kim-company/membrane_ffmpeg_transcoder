@@ -15,6 +15,10 @@ defmodule Membrane.FFmpeg.Transcoder do
         spec: {pos_integer(), pos_integer()},
         description: "Resolution of the given output."
       ],
+      bitrate: [
+        spec: pos_integer(),
+        description: "Maximum bitrate"
+      ],
       profile: [
         spec: atom(),
         description: "H264 Profile"
@@ -110,6 +114,8 @@ defmodule Membrane.FFmpeg.Transcoder do
             -g #{opts.gop_size}
             -bf #{opts.b_frames}
             -bsf:v h264_mp4toannexb
+            -maxrate #{opts.bitrate}
+            -bufsize #{opts.bitrate * 2}
             -f mpegts
             #{pipe}
           )

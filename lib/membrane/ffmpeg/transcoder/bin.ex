@@ -13,6 +13,10 @@ defmodule Membrane.FFmpeg.Transcoder.Bin do
         spec: {pos_integer(), pos_integer()},
         description: "Resolution of the given output."
       ],
+      bitrate: [
+        spec: pos_integer(),
+        description: "Maximum bitrate"
+      ],
       profile: [
         spec: atom(),
         description: "H264 Profile"

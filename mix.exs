@@ -5,7 +5,7 @@ defmodule MembraneFFmpegTranscoder.MixProject do
     [
       app: :membrane_ffmpeg_transcoder_plugin,
       version: "0.1.0",
-      elixir: "~> 1.17",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -27,7 +27,13 @@ defmodule MembraneFFmpegTranscoder.MixProject do
       {:membrane_mpeg_ts_plugin, "~> 1.0"},
 
       #
-      {:exile, "~> 0.11.0"}
+      {:exile, "~> 0.11.0"},
+
+      #
+      {:membrane_file_plugin, ">= 0.0.0", only: :test},
+      {:membrane_h26x_plugin, ">= 0.0.0", only: :test},
+      {:membrane_mp4_plugin, ">= 0.0.0", only: :test},
+      {:jason, ">= 0.0.0", only: :test}
     ]
   end
 end
