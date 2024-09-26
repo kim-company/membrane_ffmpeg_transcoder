@@ -1,5 +1,5 @@
 # Membrane.FFmpeg.Transcoder
-Membrane plugin to transcode video into different qualities using FFmpeg and Exile as backends.
+Membrane plugin to transcode video into different qualities using FFmpeg and Exile.
 
 ## Requirements
 - ffmpeg

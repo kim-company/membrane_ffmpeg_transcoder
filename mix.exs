@@ -1,14 +1,35 @@
 defmodule MembraneFFmpegTranscoder.MixProject do
   use Mix.Project
 
+  @github_url "https://github.com/kim-company/membrane_ffmpeg_transcoder_plugin"
+
   def project do
     [
       app: :membrane_ffmpeg_transcoder_plugin,
-      version: "0.1.0",
+      version: "1.0.0",
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
+      source_url: @github_url,
+      name: "Membrane FFmpeg Transcoder Plugin",
+      description: description(),
+      package: package(),
       deps: deps()
     ]
+  end
+
+  defp package do
+    [
+      maintainers: ["KIM Keep In Mind"],
+      files: ~w(lib mix.exs README.md LICENSE),
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => @github_url}
+    ]
+  end
+
+  defp description do
+    """
+    Membrane plugin to transcode video into different qualities using FFmpeg and Exile.
+    """
   end
 
   # Run "mix help compile.app" to learn about applications.
@@ -33,7 +54,8 @@ defmodule MembraneFFmpegTranscoder.MixProject do
       {:membrane_file_plugin, ">= 0.0.0", only: :test},
       {:membrane_h26x_plugin, ">= 0.0.0", only: :test},
       {:membrane_mp4_plugin, ">= 0.0.0", only: :test},
-      {:jason, ">= 0.0.0", only: :test}
+      {:jason, ">= 0.0.0", only: :test},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 end
