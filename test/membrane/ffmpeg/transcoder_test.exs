@@ -10,7 +10,7 @@ defmodule Membrane.FFmpeg.TranscoderTest do
 
   @outputs [
     # uhd: [
-    #   resolution: {3840, 2160},
+    #   resolution: {-2, 2160},
     #   bitrate: 12_800_000,
     #   profile: :high,
     #   fps: 30,
@@ -21,7 +21,7 @@ defmodule Membrane.FFmpeg.TranscoderTest do
     #   tune: :zerolatency
     # ],
     fhd: [
-      resolution: {1920, 1080},
+      resolution: {-2, 1080},
       bitrate: 6_500_000,
       profile: :high,
       fps: 30,
@@ -32,7 +32,7 @@ defmodule Membrane.FFmpeg.TranscoderTest do
       tune: :zerolatency
     ],
     hd: [
-      resolution: {1280, 720},
+      resolution: {-2, 720},
       bitrate: 3_300_000,
       profile: :high,
       fps: 30,
@@ -43,7 +43,7 @@ defmodule Membrane.FFmpeg.TranscoderTest do
       tune: :zerolatency
     ],
     sd: [
-      resolution: {640, 360},
+      resolution: {-2, 360},
       bitrate: 1_200_000,
       profile: :main,
       fps: 15,
@@ -54,7 +54,7 @@ defmodule Membrane.FFmpeg.TranscoderTest do
       tune: :zerolatency
     ],
     mobile: [
-      resolution: {416, 234},
+      resolution: {-2, 234},
       bitrate: 200_000,
       profile: :baseline,
       fps: 15,
@@ -106,8 +106,8 @@ defmodule Membrane.FFmpeg.TranscoderTest do
       |> Jason.decode!(keys: :atoms)
 
     assert [stream] = props.streams
-
-    assert {stream.width, stream.height} == opts[:resolution]
+    {_width, height} = opts[:resolution]
+    assert stream.height == height
 
     # Instead of matching directly we use this for baseline profile, which in
     # ffmpeg results in "Contrained Baseline".

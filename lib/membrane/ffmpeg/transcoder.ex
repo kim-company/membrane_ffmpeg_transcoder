@@ -10,7 +10,7 @@ defmodule Membrane.FFmpeg.Transcoder do
     availability: :on_request,
     options: [
       resolution: [
-        spec: {pos_integer(), pos_integer()},
+        spec: {integer(), integer()},
         description: "Resolution of the given output."
       ],
       bitrate: [
