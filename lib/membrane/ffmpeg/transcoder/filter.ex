@@ -71,7 +71,12 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
       |> Enum.filter(&(&1.direction == :output))
       |> Enum.with_index(1)
 
-    tmp_dir = System.tmp_dir!()
+    tmp_dir =
+      System.tmp_dir!()
+      |> Path.join(for _ <- 1..10, into: "", do: <<Enum.random(~c"0123456789abcdef")>>)
+
+    File.mkdir(tmp_dir)
+
     parent = self()
 
     Enum.each(outputs, fn {output, index} ->
@@ -94,7 +99,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
           opts = output.options
           {w, h} = opts.resolution
 
-          "[v#{index}]fps=#{opts.fps},scale=#{w}:#{h}[v#{index}out]"
+          "[v#{index}]scale=#{w}:#{h},fps=#{opts.fps}[v#{index}out]"
         end)
       ]
       |> List.flatten()
