@@ -2,24 +2,14 @@ defmodule Membrane.FFmpeg.TranscoderTest do
   use ExUnit.Case
 
   import Membrane.ChildrenSpec
+  require Membrane.Pad
   import Membrane.Testing.Assertions
 
   @crf 26
 
-  @input_path "test/fixtures/samples_big-buck-bunny_bun33s_720x480.h264"
+  @input_path "test/fixtures/av-sync-test.mp4"
 
-  @outputs [
-    # uhd: [
-    #   resolution: {-2, 2160},
-    #   bitrate: 12_800_000,
-    #   profile: :high,
-    #   fps: 30,
-    #   gop_size: 60,
-    #   b_frames: 2,
-    #   crf: 29,
-    #   preset: :veryfast,
-    #   tune: :zerolatency
-    # ],
+  @video_outputs [
     fhd: [
       resolution: {-2, 1080},
       bitrate: 6_500_000,
@@ -66,6 +56,12 @@ defmodule Membrane.FFmpeg.TranscoderTest do
     ]
   ]
 
+  @audio_outputs [
+    hd: [
+      bitrate: 98_000
+    ]
+  ]
+
   @tag :tmp_dir
   test "transcodes an input video into multiple qualities", %{tmp_dir: tmp_dir} do
     spec =
@@ -73,12 +69,19 @@ defmodule Membrane.FFmpeg.TranscoderTest do
         child(:source, %Membrane.File.Source{
           location: @input_path
         })
-        |> child(:parser, %Membrane.H264.Parser{output_stream_structure: :annexb})
+        |> child(:parser, %Membrane.H264.Parser{
+          output_stream_structure: :avc1,
+          generate_best_effort_timestamps: %{framerate: {30, 1}}
+        })
+        |> via_in(Membrane.Pad.ref(:video, 0))
+        |> child(:muxer, Membrane.FLV.Muxer)
         |> child(:transcoder, Membrane.FFmpeg.Transcoder)
       ] ++
-        Enum.map(@outputs, fn {id, opts} ->
+        Enum.map(@video_outputs, fn {id, opts} ->
+          id = "v:#{id}"
+
           get_child(:transcoder)
-          |> via_out(:output, options: opts)
+          |> via_out(:video, options: opts)
           |> child({:parser, id}, %Membrane.H264.Parser{
             output_stream_structure: :avc1
           })
@@ -88,18 +91,35 @@ defmodule Membrane.FFmpeg.TranscoderTest do
             fast_start: true
           })
           |> child({:sink, id}, %Membrane.File.Sink{location: "#{tmp_dir}/#{id}.mp4"})
+        end) ++
+        Enum.map(@audio_outputs, fn {id, opts} ->
+          id = "a:#{id}"
+
+          get_child(:transcoder)
+          |> via_out(:audio, options: opts)
+          |> child({:parser, id}, %Membrane.AAC.Parser{
+            out_encapsulation: :none,
+            output_config: :esds
+          })
+          |> child({:muxer, id}, %Membrane.MP4.Muxer.ISOM{
+            fast_start: true
+          })
+          |> child({:sink, id}, %Membrane.File.Sink{location: "#{tmp_dir}/#{id}.mp4"})
         end)
 
     pid = Membrane.Testing.Pipeline.start_link_supervised!(spec: spec)
 
-    @outputs
+    @video_outputs
     |> Enum.each(fn {id, opts} ->
+      id = "v:#{id}"
       assert_end_of_stream(pid, {:sink, ^id}, :input, 60_000)
-      assert_stream_properties("#{tmp_dir}/#{id}.mp4", opts)
+      assert_video_properties("#{tmp_dir}/#{id}.mp4", opts)
     end)
+
+    # TODO: assert audio properties.
   end
 
-  defp assert_stream_properties(path, opts) do
+  defp assert_video_properties(path, opts) do
     props =
       Exile.stream!(~w(ffprobe -show_streams -of json #{path}), stderr: :disable)
       |> Enum.into(<<>>)

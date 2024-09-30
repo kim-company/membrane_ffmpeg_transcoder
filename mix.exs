@@ -46,6 +46,7 @@ defmodule MembraneFFmpegTranscoder.MixProject do
       {:membrane_h264_format, "~> 0.6.0"},
       {:membrane_funnel_plugin, "~> 0.9.0"},
       {:membrane_mpeg_ts_plugin, "~> 1.0"},
+      {:membrane_flv_plugin, "~> 0.13.0"},
 
       #
       {:exile, "~> 0.11.0"},
@@ -54,6 +55,7 @@ defmodule MembraneFFmpegTranscoder.MixProject do
       {:membrane_file_plugin, ">= 0.0.0", only: :test},
       {:membrane_h26x_plugin, ">= 0.0.0", only: :test},
       {:membrane_mp4_plugin, ">= 0.0.0", only: :test},
+      {:membrane_aac_plugin, ">= 0.0.0", only: :test},
       {:jason, ">= 0.0.0", only: :test},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
     ]
