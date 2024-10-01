@@ -46,7 +46,7 @@ defmodule MembraneFFmpegTranscoder.MixProject do
       {:membrane_h264_format, "~> 0.6.0"},
       {:membrane_funnel_plugin, "~> 0.9.0"},
       {:membrane_mpeg_ts_plugin, "~> 1.0"},
-      {:membrane_flv_plugin, "~> 0.13.0"},
+      {:membrane_flv_plugin, "~> 0.12.0"},
 
       #
       {:exile, "~> 0.11.0"},
