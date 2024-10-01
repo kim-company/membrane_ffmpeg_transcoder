@@ -59,6 +59,9 @@ defmodule Membrane.FFmpeg.TranscoderTest do
   @audio_outputs [
     hd: [
       bitrate: 98_000
+    ],
+    fhd: [
+      bitrate: 128_000
     ]
   ]
 
