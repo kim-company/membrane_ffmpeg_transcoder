@@ -74,6 +74,20 @@ defmodule Membrane.FFmpeg.TranscoderTest do
         })
         |> child(:transcoder, Membrane.FFmpeg.Transcoder)
       ] ++
+        Enum.map(@audio_outputs, fn {id, opts} ->
+          id = "a_#{id}"
+
+          get_child(:transcoder)
+          |> via_out(:audio, options: opts)
+          |> child({:parser, id}, %Membrane.AAC.Parser{
+            out_encapsulation: :none,
+            output_config: :esds
+          })
+          |> child({:muxer, id}, %Membrane.MP4.Muxer.ISOM{
+            fast_start: true
+          })
+          |> child({:sink, id}, %Membrane.File.Sink{location: "#{tmp_dir}/#{id}.mp4"})
+        end) ++
         Enum.map(@video_outputs, fn {id, opts} ->
           id = "v_#{id}"
 
@@ -84,20 +98,6 @@ defmodule Membrane.FFmpeg.TranscoderTest do
           })
           # We're outputing it into mp4 to onbtain all stream information
           # with ffprobe.
-          |> child({:muxer, id}, %Membrane.MP4.Muxer.ISOM{
-            fast_start: true
-          })
-          |> child({:sink, id}, %Membrane.File.Sink{location: "#{tmp_dir}/#{id}.mp4"})
-        end) ++
-        Enum.map(@audio_outputs, fn {id, opts} ->
-          id = "a_#{id}"
-
-          get_child(:transcoder)
-          |> via_out(:audio, options: opts)
-          |> child({:parser, id}, %Membrane.AAC.Parser{
-            out_encapsulation: :none,
-            output_config: :esds
-          })
           |> child({:muxer, id}, %Membrane.MP4.Muxer.ISOM{
             fast_start: true
           })
