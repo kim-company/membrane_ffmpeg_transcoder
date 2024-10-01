@@ -43,8 +43,8 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
           "New pads can be added to #{inspect(__MODULE__)} only before playback transition to :playing"
         )
 
-  def handle_parent_notification({:stream_added, type, opts}, _ctx, state) do
-    {[], update_in(state, [:outputs, type], fn acc -> acc ++ [opts] end)}
+  def handle_parent_notification({:stream_added, {type, sid}, opts}, _ctx, state) do
+    {[], update_in(state, [:outputs, type], fn acc -> acc ++ [{sid, opts}] end)}
   end
 
   @impl true
@@ -60,7 +60,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
     filtergraph =
       [
         "[0:v]split=#{length(video_outputs)}#{Enum.map(video_outputs, fn {_output, index} -> "[v#{index}]" end)}",
-        Enum.map(video_outputs, fn {opts, index} ->
+        Enum.map(video_outputs, fn {{_sid, opts}, index} ->
           {w, h} = opts.resolution
 
           "[v#{index}]scale=#{w}:#{h},fps=#{opts.fps}[v#{index}out]"
@@ -74,7 +74,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
         Enum.flat_map(audio_outputs, fn _ -> ~w(-map 0:a) end)
 
     vcodec =
-      Enum.flat_map(video_outputs, fn {opts, index} ->
+      Enum.flat_map(video_outputs, fn {{_sid, opts}, index} ->
         ~w(
             -c:v:#{index}
             libx264
@@ -92,10 +92,17 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
       end)
 
     acodec =
-      Enum.flat_map(audio_outputs, fn {opts, index} ->
+      Enum.flat_map(audio_outputs, fn {{_sid, opts}, index} ->
         ~w(
         -c:a:#{index} aac -b:a:#{index} #{opts.bitrate} \
       )
+      end)
+
+    sid_mapping =
+      (state.outputs.video ++ state.outputs.audio)
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {{sid, _}, index} ->
+        ~w(-streamid #{index}:#{sid})
       end)
 
     muxer = ~w(
@@ -111,7 +118,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
           -loglevel error
           -i -
           -filter_complex #{filtergraph}
-        ) ++ mappings ++ vcodec ++ acodec ++ muxer
+        ) ++ mappings ++ vcodec ++ acodec ++ sid_mapping ++ muxer
 
     Membrane.Logger.debug("FFmpeg: #{Enum.join(command, " ")}")
     {:ok, ffmpeg} = Exile.Process.start_link(command)

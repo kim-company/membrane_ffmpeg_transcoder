@@ -1,6 +1,8 @@
 defmodule Membrane.FFmpeg.Transcoder do
   use Membrane.Bin
 
+  require Membrane.Logger
+
   # FFmpeg always puts the first MPEGTS stream at this index,
   # the other ones follow.
   @mpeg_ts_sid_index_offset 256
@@ -97,7 +99,7 @@ defmodule Membrane.FFmpeg.Transcoder do
     actions =
       [
         spec: spec,
-        notify_child: {:transcoder, {:stream_added, Pad.name_by_ref(pad), ctx.pad_options}}
+        notify_child: {:transcoder, {:stream_added, {Pad.name_by_ref(pad), sid}, ctx.pad_options}}
       ]
 
     state = put_in(state, [:sid_to_pad, sid], pad)
@@ -111,7 +113,7 @@ defmodule Membrane.FFmpeg.Transcoder do
         _ctx,
         state
       ) do
-    IO.inspect(pmt, label: "PMT TABLE")
+    Membrane.Logger.debug("PMT table received: #{inspect(pmt)}")
     # We expect a stream in the PMT for each pad attached.
     actions =
       state.sid_to_pad
