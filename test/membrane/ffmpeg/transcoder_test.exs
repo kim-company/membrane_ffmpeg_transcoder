@@ -58,10 +58,12 @@ defmodule Membrane.FFmpeg.TranscoderTest do
 
   @audio_outputs [
     hd: [
-      bitrate: 98_000
+      bitrate: 98_000,
+      sample_rate: 44_100
     ],
     fhd: [
-      bitrate: 128_000
+      bitrate: 128_000,
+      sample_rate: 48_000
     ]
   ]
 
@@ -156,5 +158,6 @@ defmodule Membrane.FFmpeg.TranscoderTest do
     assert [stream] = props.streams
     assert stream.codec_name == "aac"
     assert String.to_integer(stream.bit_rate) <= opts[:bitrate]
+    assert String.to_integer(stream.sample_rate) == opts[:sample_rate]
   end
 end

@@ -20,6 +20,10 @@ defmodule Membrane.FFmpeg.Transcoder do
       bitrate: [
         spec: pos_integer(),
         description: "Maximum bitrate"
+      ],
+      sample_rate: [
+        spec: pos_integer(),
+        default: 48_000
       ]
     ]
   )

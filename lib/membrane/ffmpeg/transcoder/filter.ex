@@ -94,7 +94,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
     acodec =
       Enum.flat_map(audio_outputs, fn {{_sid, opts}, index} ->
         ~w(
-        -c:a:#{index} aac -b:a:#{index} #{opts.bitrate} \
+        -c:a:#{index} aac -b:a:#{index} #{opts.bitrate} -ar:a:#{index} #{opts.sample_rate} \
       )
       end)
 
