@@ -113,7 +113,12 @@ defmodule Membrane.FFmpeg.TranscoderTest do
       assert_video_properties("#{tmp_dir}/#{id}.mp4", opts)
     end)
 
-    # TODO: assert audio properties.
+    @audio_outputs
+    |> Enum.each(fn {id, opts} ->
+      id = "a_#{id}"
+      assert_end_of_stream(pid, {:sink, ^id}, :input, 60_000)
+      assert_audio_properties("#{tmp_dir}/#{id}.mp4", opts)
+    end)
   end
 
   defp assert_video_properties(path, opts) do
@@ -140,5 +145,16 @@ defmodule Membrane.FFmpeg.TranscoderTest do
 
     have_framerate = num / den
     assert_in_delta have_framerate, opts[:fps], 0.1
+  end
+
+  defp assert_audio_properties(path, opts) do
+    props =
+      Exile.stream!(~w(ffprobe -show_streams -of json #{path}), stderr: :disable)
+      |> Enum.into(<<>>)
+      |> Jason.decode!(keys: :atoms)
+
+    assert [stream] = props.streams
+    assert stream.codec_name == "aac"
+    assert String.to_integer(stream.bit_rate) <= opts[:bitrate]
   end
 end
