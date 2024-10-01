@@ -83,8 +83,8 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
             -tune:v:#{index} #{opts.tune}
             -profile:v:#{index} #{opts.profile}
             -g:v:#{index} #{opts.gop_size}
-            -keyint_min:v:#{index} #{opts.gop_size}
-            -force_key_frames:v:#{index} #{"expr:gte(t,n_forced*#{div(opts.fps, opts.gop_size)})"}
+            -rc-lookahead:v:#{index} #{opts.gop_size}
+            -force_key_frames:v:#{index} #{"expr:gte(t,n_forced*#{div(opts.gop_size, opts.fps)})"}
             -bf:v:#{index} #{opts.b_frames}
             -maxrate:v:#{index} #{opts.bitrate}
             -bufsize:v:#{index} #{opts.bitrate * 2}
