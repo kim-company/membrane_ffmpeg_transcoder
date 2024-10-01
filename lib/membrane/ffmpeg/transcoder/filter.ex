@@ -14,8 +14,9 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
   end
 
   def_input_pad(:input,
-    flow_control: :auto,
-    accepted_format: %Membrane.RemoteStream{content_format: Membrane.FLV}
+    accepted_format:
+      %Membrane.RemoteStream{content_format: content_format}
+      when content_format in [nil, Membrane.FLV]
   )
 
   def_output_pad(:output,

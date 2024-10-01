@@ -7,7 +7,7 @@ defmodule Membrane.FFmpeg.TranscoderTest do
 
   @crf 26
 
-  @input_path "test/fixtures/av-sync-test.mp4"
+  @input_path "test/fixtures/av-sync-test.flv"
 
   @video_outputs [
     fhd: [
@@ -69,16 +69,10 @@ defmodule Membrane.FFmpeg.TranscoderTest do
         child(:source, %Membrane.File.Source{
           location: @input_path
         })
-        |> child(:parser, %Membrane.H264.Parser{
-          output_stream_structure: :avc1,
-          generate_best_effort_timestamps: %{framerate: {30, 1}}
-        })
-        |> via_in(Membrane.Pad.ref(:video, 0))
-        |> child(:muxer, Membrane.FLV.Muxer)
         |> child(:transcoder, Membrane.FFmpeg.Transcoder)
       ] ++
         Enum.map(@video_outputs, fn {id, opts} ->
-          id = "v:#{id}"
+          id = "v_#{id}"
 
           get_child(:transcoder)
           |> via_out(:video, options: opts)
@@ -93,7 +87,7 @@ defmodule Membrane.FFmpeg.TranscoderTest do
           |> child({:sink, id}, %Membrane.File.Sink{location: "#{tmp_dir}/#{id}.mp4"})
         end) ++
         Enum.map(@audio_outputs, fn {id, opts} ->
-          id = "a:#{id}"
+          id = "a_#{id}"
 
           get_child(:transcoder)
           |> via_out(:audio, options: opts)
@@ -111,7 +105,7 @@ defmodule Membrane.FFmpeg.TranscoderTest do
 
     @video_outputs
     |> Enum.each(fn {id, opts} ->
-      id = "v:#{id}"
+      id = "v_#{id}"
       assert_end_of_stream(pid, {:sink, ^id}, :input, 60_000)
       assert_video_properties("#{tmp_dir}/#{id}.mp4", opts)
     end)

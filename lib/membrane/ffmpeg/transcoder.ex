@@ -6,7 +6,9 @@ defmodule Membrane.FFmpeg.Transcoder do
   @mpeg_ts_sid_index_offset 256
 
   def_input_pad(:input,
-    accepted_format: %Membrane.RemoteStream{content_format: Membrane.FLV}
+    accepted_format:
+      %Membrane.RemoteStream{content_format: content_format}
+      when content_format in [nil, Membrane.FLV]
   )
 
   def_output_pad(:audio,
