@@ -84,6 +84,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
             -profile:v:#{index} #{opts.profile}
             -g:v:#{index} #{opts.gop_size}
             -rc-lookahead:v:#{index} #{opts.gop_size}
+            -sc_threshold 0
             -force_key_frames:v:#{index} #{"expr:gte(t,n_forced*#{div(opts.gop_size, opts.fps)})"}
             -bf:v:#{index} #{opts.b_frames}
             -maxrate:v:#{index} #{opts.bitrate}
