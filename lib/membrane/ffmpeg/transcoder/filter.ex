@@ -155,7 +155,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
   def handle_info({ref, :eof}, _ctx, state) do
     # Avoid receiving the DOWN message.
     Process.demonitor(ref, [:flush])
-    {:ok, 0} = Exile.Process.await_exit(state.ffmpeg)
+    {:ok, 0} = Exile.Process.await_exit(state.ffmpeg, 60_000)
     {[end_of_stream: :output], state}
   end
 
