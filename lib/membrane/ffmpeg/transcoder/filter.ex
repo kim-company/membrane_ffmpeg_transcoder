@@ -127,7 +127,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
     parent = self()
 
     _task =
-      Task.Supervisor.async(state.task_supervisor, fn ->
+      Task.Supervisor.async_nolink(state.task_supervisor, fn ->
         :ok = Exile.Process.change_pipe_owner(ffmpeg, :stdout, self())
         read_loop(ffmpeg, parent)
       end)
@@ -161,6 +161,10 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
 
   def handle_info({_ref, {:error, any}}, _ctx, _state) do
     raise FFmpegError, any
+  end
+
+  def handle_info({:DOWN, _task_ref, :process, _pid, reason}, _ctx, _state) do
+    raise FFmpegError, reason
   end
 
   def handle_info({_ref, {:ok, 0}}, _ctx, state) do
