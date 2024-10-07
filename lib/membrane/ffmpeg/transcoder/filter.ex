@@ -27,7 +27,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
   @impl true
   def handle_init(_ctx, _opts) do
     {:ok, pid} = Task.Supervisor.start_link()
-    {[], %{ffmpeg: nil, outputs: %{video: [], audio: []}, task_supervisor: pid}}
+    {[], %{ffmpeg: nil, read_ref: nil, outputs: %{video: [], audio: []}, task_supervisor: pid}}
   end
 
   @impl true
@@ -125,13 +125,13 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
 
     parent = self()
 
-    _task =
-      Task.Supervisor.async(state.task_supervisor, fn ->
+    task =
+      Task.Supervisor.async_nolink(state.task_supervisor, fn ->
         :ok = Exile.Process.change_pipe_owner(ffmpeg, :stdout, self())
         read_loop(ffmpeg, parent)
       end)
 
-    {[], %{state | ffmpeg: ffmpeg}}
+    {[], %{state | ffmpeg: ffmpeg, read_ref: task.ref}}
   end
 
   @impl true
@@ -142,7 +142,9 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    Exile.Process.close_stdin(state.ffmpeg)
+    # We're not the owners of stdout, so ffmpeg will have its
+    # chance to deliver all its data anyway.
+    {:ok, 0} = Exile.Process.await_exit(state.ffmpeg)
     {[], state}
   end
 
@@ -151,37 +153,31 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
     {[buffer: {:output, %Membrane.Buffer{payload: payload}}], state}
   end
 
-  def handle_info({ref, :eof}, _ctx, state) do
+  def handle_info({ref, :eof}, _ctx, state = %{read_ref: ref}) do
     # Avoid receiving the DOWN message.
     Process.demonitor(ref, [:flush])
-    {:ok, 0} = Exile.Process.await_exit(state.ffmpeg)
     {[end_of_stream: :output], state}
   end
 
-  def handle_info({_ref, {:error, any}}, _ctx, _state) do
+  def handle_info({ref, {:error, any}}, _ctx, %{read_ref: ref}) do
     raise FFmpegError, any
   end
 
-  def handle_info({_ref, {:ok, 0}}, _ctx, state) do
-    {[], state}
+  def handle_info({:DOWN, ref, :process, _pid, reason}, %{read_ref: ref}) do
+    raise FFmpegError, reason
   end
 
   defp read_loop(p, parent) do
-    try do
-      case Exile.Process.read(p) do
-        {:ok, data} ->
-          send(parent, {:exile, {:data, data}})
-          read_loop(p, parent)
+    case Exile.Process.read(p) do
+      {:ok, data} ->
+        send(parent, {:exile, {:data, data}})
+        read_loop(p, parent)
 
-        :eof ->
-          :eof
-
-        {:error, any} ->
-          {:error, any}
-      end
-    catch
-      :exit, _e ->
+      :eof ->
         :eof
+
+      {:error, any} ->
+        {:error, any}
     end
   end
 end
