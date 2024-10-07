@@ -84,6 +84,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
             -profile:v:#{index} #{opts.profile}
             -g:v:#{index} #{opts.gop_size}
             -rc-lookahead:v:#{index} #{opts.gop_size}
+            -sc_threshold 0
             -force_key_frames:v:#{index} #{"expr:gte(t,n_forced*#{div(opts.gop_size, opts.fps)})"}
             -bf:v:#{index} #{opts.b_frames}
             -maxrate:v:#{index} #{opts.bitrate}
@@ -144,7 +145,7 @@ defmodule Membrane.FFmpeg.Transcoder.Filter do
   def handle_end_of_stream(:input, _ctx, state) do
     # We're not the owners of stdout, so ffmpeg will have its
     # chance to deliver all its data anyway.
-    {:ok, 0} = Exile.Process.await_exit(state.ffmpeg)
+    {:ok, 0} = Exile.Process.await_exit(state.ffmpeg, 30_000)
     {[], state}
   end
 
